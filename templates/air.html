@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Éco-Survie - Salle Air</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Chat fixé à gauche */
+        #chat-container {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(180deg, #18181b 0%, #0e0e10 100%);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #2d2d35;
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #chat-container h3 {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #5c16c5;
+            box-shadow: 0 2px 10px rgba(145, 71, 255, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #chat-container h3::before {
+            content: "💬";
+            font-size: 24px;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #eb0400;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-left: auto;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .live-badge::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #18181b;
+            scrollbar-width: thin;
+            scrollbar-color: #9147ff #1f1f23;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #1f1f23;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #9147ff, #772ce8);
+            border-radius: 4px;
+        }
+
+        #messages p {
+            margin: 0 0 10px 0;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            transition: all 0.2s ease;
+            animation: messageSlideIn 0.3s ease-out;
+        }
+
+        #messages p:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-left-color: #9147ff;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-input-group {
+            padding: 15px;
+            background: #1f1f23;
+            border-top: 1px solid #2d2d35;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #18181b;
+            border: 2px solid #2d2d35;
+            border-radius: 8px;
+            color: #efeff1;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .chat-input-group input:focus {
+            border-color: #9147ff;
+            box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.15);
+            background: #1f1f23;
+        }
+
+        .chat-input-group button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-input-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(145, 71, 255, 0.4);
+        }
+
+        .chat-buttons {
+            padding: 0 15px 15px 15px;
+            background: #1f1f23;
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-buttons button {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(145, 71, 255, 0.15);
+            border: 1px solid rgba(145, 71, 255, 0.3);
+            border-radius: 6px;
+            color: #9147ff;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-buttons button:hover {
+            background: rgba(145, 71, 255, 0.25);
+            border-color: #9147ff;
+        }
+
+        #tts_toggle {
+            background: rgba(255, 170, 0, 0.15);
+            border-color: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+        }
+
+        /* Contenu principal */
+        #main-content {
+            margin-left: 400px;
+            width: calc(100% - 400px);
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #55ff55;
+            text-align: center;
+            font-size: 36px;
+            text-shadow: 0 0 10px rgba(85, 255, 85, 0.5);
+            margin-bottom: 20px;
+        }
+
+        #timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #55ff55;
+            border: 2px solid #55ff55;
+            box-shadow: 0 0 20px rgba(85, 255, 85, 0.3);
+            z-index: 1000;
+        }
+
+        .air-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .narrative-box {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #4a9eff;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .narrative-box h2 {
+            color: #4af;
+            margin-top: 0;
+            text-shadow: 0 0 10px rgba(74, 170, 255, 0.5);
+        }
+
+        .wind-arrow {
+            font-size: 60px;
+            color: #4af;
+            animation: windBlow 2s ease-in-out infinite;
+        }
+
+        @keyframes windBlow {
+            0%, 100% { transform: translateY(0); opacity: 1; }
+            50% { transform: translateY(10px); opacity: 0.7; }
+        }
+
+        .pollution-map {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 15px;
+            padding: 30px;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .compass {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            border: 3px solid #4af;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .compass-arrow {
+            font-size: 40px;
+            color: #ff5555;
+        }
+
+        .lille-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #ff5555, #ff8855);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 3px solid white;
+            box-shadow: 0 0 20px rgba(255, 85, 85, 0.5);
+            z-index: 10;
+        }
+
+        .industrial-site {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .industrial-site:hover {
+            transform: scale(1.1);
+            border-color: #ffaa00;
+            box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+        }
+
+        .industrial-site.selected {
+            border-color: #55ff55;
+            box-shadow: 0 0 30px rgba(85, 255, 85, 0.8);
+            transform: scale(1.15);
+        }
+
+        .site-north {
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #666, #888);
+        }
+
+        .site-south {
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #555, #777);
+        }
+
+        .site-west {
+            top: 50%;
+            left: 10%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #447, #669);
+        }
+
+        .site-east {
+            top: 50%;
+            right: 10%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #774, #996);
+        }
+
+        .site-northeast {
+            top: 20%;
+            right: 20%;
+            transform: translate(50%, -50%);
+            background: linear-gradient(135deg, #554, #776);
+        }
+
+        .site-northwest {
+            top: 20%;
+            left: 20%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #445, #667);
+        }
+
+        .site-southeast {
+            bottom: 20%;
+            right: 20%;
+            transform: translate(50%, 50%);
+            background: linear-gradient(135deg, #775, #997);
+        }
+
+        .site-southwest {
+            bottom: 20%;
+            left: 20%;
+            transform: translate(-50%, 50%);
+            background: linear-gradient(135deg, #446, #668);
+        }
+
+        .site-far-north {
+            top: 5%;
+            left: 30%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #665, #887);
+        }
+
+        .site-far-south {
+            bottom: 5%;
+            right: 30%;
+            transform: translateX(50%);
+            background: linear-gradient(135deg, #556, #778);
+        }
+
+        .pollution-level {
+            font-size: 18px;
+            color: #ff5555;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .co2-high {
+            color: #ff5555;
+            font-weight: bold;
+        }
+
+        .co2-medium {
+            color: #ffaa00;
+            font-weight: bold;
+        }
+
+        .co2-low {
+            color: #55ff55;
+            font-weight: bold;
+        }
+
+        .validate-btn {
+            background: linear-gradient(135deg, #55ff55, #33dd33);
+            color: #1a1a1a;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .validate-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(85, 255, 85, 0.5);
+        }
+
+        .validate-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .hint-box {
+            background: rgba(255, 170, 0, 0.1);
+            border: 2px solid #ffaa00;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .hint-box h3 {
+            color: #ffaa00;
+            margin-top: 0;
+        }
+
+        
+
+        @media (max-width: 1024px) {
+            #chat-container {
+                width: 320px;
+            }
+            
+            #main-content {
+                margin-left: 320px;
+                width: calc(100% - 320px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            #chat-container {
+                width: 100%;
+                height: 40vh;
+                top: auto;
+                bottom: 0;
+                border-right: none;
+                border-top: 1px solid #2d2d35;
+            }
+            
+            #main-content {
+                margin-left: 0;
+                width: 100%;
+                padding-bottom: 40vh;
+            }
+            
+            #timer {
+                position: static;
+                margin: 10px auto;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Chat à gauche -->
+    <div id="chat-container">
+        <h3>
+            Chat d'équipe
+            <span class="live-badge">Live</span>
+        </h3>
+        <div id="messages"></div>
+        <div class="chat-input-group">
+            <input id="message" type="text" placeholder="Envoyer un message...">
+            <button onclick="sendMessage()">Envoyer</button>
+        </div>
+        <div class="chat-buttons">
+            <button onclick="startVoice()">🎤 Vocal</button>
+            <button id="tts_toggle" onclick="toggleTextToSpeech()">🔊 Lecture</button>
+        </div>
+    </div>
+
+    <!-- Contenu principal -->
+    <div id="main-content">
+        <h1 id="welcome">💨 Salle Air - Le Capteur du Vent du Nord</h1>
+        <div id="timer">Temps restant : --</div>
+
+        <div class="air-container">
+            <!-- Narrative Box -->
+            <div class="narrative-box">
+                <h2>🚨 ALERTE CRITIQUE</h2>
+                <p>Les purificateurs d'air de la cité de Lille tournent à vide.</p>
+                <p>Les capteurs atmosphériques montrent une forte concentration de CO₂, mais la pollution semble venir de l'extérieur du dôme.</p>
+            </div>
+
+            <!-- Pollution Map -->
+            <div class="pollution-map">
+                <div class="compass">
+                    <div class="compass-arrow">N</div>
+                </div>
+
+                <div class="lille-center">
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px;">🏛️</div>
+                        <div>LILLE</div>
+                    </div>
+                </div>
+
+                <div class="industrial-site site-north" data-site="usine-b" onclick="selectSite('usine-b')">
+                    <div>🏭</div>
+                    <div>Usine B</div>
+                    <!--<div class="pollution-level co2-high">450 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-south" data-site="usine-a" onclick="selectSite('usine-a')">
+                    <div>🏭</div>
+                    <div>Usine A</div>
+                   <!--<div class="pollution-level co2-medium">210 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-west" data-site="port" onclick="selectSite('port')">
+                    <div>⚓</div>
+                    <div>Port</div>
+                    <!--<div class="pollution-level co2-low">180 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-east" data-site="usine-c" onclick="selectSite('usine-c')">
+                    <div>🏭</div>
+                    <div>Usine C</div>
+                    <!--<div class="pollution-level co2-medium">250 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-northeast" data-site="usine-d" onclick="selectSite('usine-d')">
+                    <div>🏭</div>
+                    <div>Usine D</div>
+                    <!--<div class="pollution-level co2-low">160 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-northwest" data-site="usine-e" onclick="selectSite('usine-e')">
+                    <div>🏭</div>
+                    <div>Usine E</div>
+                    <!--<div class="pollution-level co2-high">400 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-southeast" data-site="usine-f" onclick="selectSite('usine-f')">
+                    <div>🏭</div>
+                    <div>Usine F</div>
+                   <!--<div class="pollution-level co2-medium">230 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-southwest" data-site="usine-g" onclick="selectSite('usine-g')">
+                    <div>🏭</div>
+                    <div>Usine G</div>
+                    <!--<div class="pollution-level co2-low">170 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-far-north" data-site="usine-h" onclick="selectSite('usine-h')">
+                    <div>🏭</div>
+                    <div>Usine H</div>
+                    <!--<div class="pollution-level co2-medium">220 ppm</div>-->
+                </div>
+
+                <div class="industrial-site site-far-south" data-site="usine-i" onclick="selectSite('usine-i')">
+                    <div>🏭</div>
+                    <div>Usine I</div>
+                    <!--<div class="pollution-level co2-low">150 ppm</div>-->
+                </div>
+            </div>
+
+            <!-- Validation Button -->
+            <div style="text-align: center;">
+                <button id="validate-source" class="validate-btn" onclick="validatePollutionSource()" disabled>
+                    Identifier la Source de Pollution
+                </button>
+            </div>
+
+            <!-- Air Quality Chart -->
+            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-top: 20px;">
+                <h3 style="color: #4af;">📈 Qualité de l'Air en Temps Réel</h3>
+                <canvas id="airChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+       
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+    // Écouter la complétion du puzzle Air
+    socket.on('puzzle_completed', (data) => {
+        if (data.room === 'Air') {
+            showNotification('🎯 Énigme de la salle Air résolue ! Redirection vers le code final...', 'success');
+            
+            setTimeout(() => {
+                window.location.href = '/final_code';
+            }, 3000);
+        }
+    });
+    </script>
+    <script>
+        let selectedSite = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        function selectSite(site) {
+            document.querySelectorAll('.industrial-site').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            const siteElement = document.querySelector(`[data-site="${site}"]`);
+            if (siteElement) {
+                siteElement.classList.add('selected');
+                selectedSite = site;
+                document.getElementById('validate-source').disabled = false;
+            }
+        }
+
+        function validatePollutionSource() {
+            if (!selectedSite) {
+                showNotification('⚠️ Veuillez sélectionner une source avant de valider.', 'warning');
+                return;
+            }
+
+            if (attempts >= maxAttempts) {
+                showNotification('❌ Trop de tentatives. Vous avez épuisé vos chances.', 'error');
+                return;
+            }
+
+            attempts++;
+            const correct = selectedSite === 'usine-b';
+
+            sendAction('identify_pollution_source', {
+                source: selectedSite,
+                correct: correct,
+                attempts: attempts
+            });
+
+            if (correct) {
+                showNotification('✅ Source identifiée ! Le vent du Nord apportait la pollution de l\'Usine B !', 'success');
+                // AJOUT: Rediriger vers la page du code final après 3 secondes
+                setTimeout(() => {
+                    window.location.href = '/final_code';
+                }, 3000);
+
+            } else {
+                let hint = '';
+                if (selectedSite === 'usine-a') {
+                    hint = 'L\'Usine A est au Sud. Mauvaise réponse.';
+                } else if (selectedSite === 'port') {
+                    hint = 'Le Port est à l\'Ouest. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-c') {
+                    hint = 'L\'Usine C est à l\'Est. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-d') {
+                    hint = 'L\'Usine D est au Nord-Est. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-e') {
+                    hint = 'L\'Usine E est au Nord-Ouest. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-f') {
+                    hint = 'L\'Usine F est au Sud-Est. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-g') {
+                    hint = 'L\'Usine G est au Sud-Ouest. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-h') {
+                    hint = 'L\'Usine H est au loin au Nord. Mauvaise réponse.';
+                } else if (selectedSite === 'usine-i') {
+                    hint = 'L\'Usine I est au loin au Sud. Mauvaise réponse.';
+                }
+                showNotification(`❌ Mauvaise source. ${hint}`, 'warning');
+
+                setTimeout(() => {
+                    document.querySelectorAll('.industrial-site').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    selectedSite = null;
+                    document.getElementById('validate-source').disabled = true;
+                }, 2000);
+            }
+        }
+
+        function changeRoom() {
+            const select = document.getElementById('room_select');
+            const room = select.value;
+            socket.emit('select_room', { room: room });
+        }
+
+        socket.on('room_selected', (data) => {
+            window.location.href = '/game';
+        });
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                showNotification('🎓 Objectif : Identifier la source de pollution en analysant la direction du vent et les niveaux de CO₂', 'info');
+            }, 1000);
+        });
+    </script>
+
+    <script>
+        // Écouter la victoire depuis n'importe quelle page
+        socket.on('victory_achieved', (data) => {
+            showNotification(`🎉 ${data.validator} a trouvé le code secret !`, 'success');
+            setTimeout(() => {
+                window.location.href = '/victory';
+            }, 3000);
+        });
+
+        // Polling de secours pour détecter la victoire
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/poll_status');
+                const data = await response.json();
+                if (data.game_result === 'victory') {
+                    window.location.href = '/victory';
+                }
+            } catch (error) {
+                console.error('Erreur polling victoire:', error);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Éco-Survie</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <h1 id="welcome">Bienvenue, {{ username }} dans la salle {{ room }}</h1>
+    <div id="timer">Temps restant : --</div>
+
+    <!-- Changement de salle -->
+    <div id="room-switch">
+        <h2>Changer de salle</h2>
+        <select id="room_select">
+            <option value="Energie">Energie</option>
+            <option value="Eau">Eau</option>
+            <option value="Air">Air</option>
+            <option value="Flore">Flore</option>
+        </select>
+        <button onclick="changeRoom()">Changer de salle</button>
+    </div>
+
+
+    <!-- États globaux -->
+    <div id="states">
+        Énergie: <span id="energy_level"></span><br>
+        Pollution Eau: <span id="water_pollution"></span><br>
+        CO₂ Air: <span id="air_co2"></span><br>
+        O₂ Air: <span id="air_o2"></span><br>
+        Santé Flore: <span id="flora_health"></span>
+    </div>
+
+    <!-- Chat -->
+    <div id="chat">
+        <div id="messages"></div>
+        <input id="message" placeholder="Message texte">
+        <button onclick="sendMessage()">Envoyer</button>
+        <button onclick="startVoice()">Démarrer Voix</button>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

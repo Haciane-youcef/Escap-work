@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 Éco-Urgence - Centre de Commandement</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'VT323', monospace;
+            background: linear-gradient(135deg, #001f3f, #0f4c81, #001f3f);
+            color: #00ff00;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            position: relative;
+        }
+        .background-scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(to bottom, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
+            pointer-events: none;
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 4px; }
+        }
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00ff00;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+        }
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.8rem;
+            text-shadow: 0 0 15px #00ff00;
+            animation: glitch 1.5s infinite;
+        }
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(2px, -2px); }
+            60% { transform: translate(-2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+        .alert-box {
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+            animation: alert 1s infinite;
+        }
+        @keyframes alert {
+            0%, 100% { border-color: #ff0000; }
+            50% { border-color: #ff5555; }
+        }
+        .status-panel, .room-panel, .procedure-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            color: #00ff00;
+            font-size: 1.6rem;
+            margin-top: 0;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        select, button {
+            background: #002200;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 20px;
+            font-family: 'VT323', monospace;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 5px;
+        }
+        select:hover, button:hover {
+            background: #004400;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        button:disabled {
+            border-color: #ff0000;
+            color: #ff0000;
+            cursor: not-allowed;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background: rgba(0, 255, 0, 0.1);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 1.2rem;
+        }
+        .agent-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #00ff00;
+        }
+        .timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000;
+            text-align: center;
+            margin: 20px 0;
+        }
+        #game_status {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            text-align: center;
+            margin: 15px 0;
+        }
+        #status-message p {
+            background: rgba(255, 0, 0, 0.2);
+            padding: 10px;
+            border: 1px solid #ff0000;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        .polling-indicator {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 1rem;
+            box-shadow: 0 0 10px #00ff00;
+            z-index: 3;
+        }
+        audio {
+            display: none;
+        }
+    </style>
+</head>
+<body data-username="{{ username }}">
+    <div class="background-scanlines"></div>
+    <audio id="bg-music" loop autoplay>
+        <source src="https://freesound.org/data/previews/243/243020_4284968-lq.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="tick-sound">
+        <source src="https://freesound.org/data/previews/254/254814_3161125-lq.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="polling-indicator">🔄 SYSTÈME EN LIGNE</div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🟢 CONNECTÉ AU CENTRE DE COMMANDEMENT</h1>
+            <p>AGENT: {{ username }} | STATUT: OPÉRATIONNEL</p>
+        </div>
+
+        <div class="alert-box">
+            <h2>🚨 ALERTE CATASTROPHE ÉCOLOGIQUE</h2>
+            <p><strong>DÉLAI CRITIQUE: 10 MINUTES</strong></p>
+            <p>Point de non-retour écologique imminent. Coordination des unités spécialisées requise.</p>
+        </div>
+
+        <div class="status-panel">
+            <h2>📊 STATUT MISSION</h2>
+            <p>▶️ Unités connectées: {{ users|length }}/4</p>
+            <p id="ready-count">▶️ Unités opérationnelles: 0/2 minimum</p>
+            <p id="game_status">▶️ Statut système: STANDBY</p>
+            <p>▶️ Niveau d'alerte: MAXIMUM</p>
+            <div class="timer">10:00</div>
+            <h2>PROTOCOLE D'INTERVENTION:</h2>
+            <ul>
+                <li>🔸 Sélection poste spécialisé</li>
+                <li>🔸 Confirmation statut prêt</li>
+                <li>🔸 Lancement séquence urgence</li>
+                <li>🔸 Intervention coordonnée</li>
+            </ul>
+        </div>
+
+        <div class="room-panel">
+            <h2>🎯 AFFECTATION DES POSTES</h2>
+            <p>Chaque agent doit choisir un poste spécialisé unique</p>
+            <select id="room_select">
+                {% for room in rooms %}
+                    <option value="{{ room.room_name }}"
+                        {% if room.assigned_player and room.assigned_player != username %}disabled{% endif %}
+                    >
+                        {{ room.room_name }}
+                        {% if room.is_locked %}🔒 VERROUILLÉ
+                        {% elif room.assigned_player and room.assigned_player != username %}OCCUPÉ
+                        {% elif room.assigned_player == username %}VOTRE POSTE
+                        {% else %}DISPONIBLE{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+            <button onclick="selectRoom()">⚡ AFFECTER POSTE</button>
+        </div>
+
+        <div class="status-panel">
+            <h2>👥 UNITÉS DISPONIBLES</h2>
+            <ul id="player_list">
+                {% for user in users %}
+                    <li class="agent-status">
+                        <span>{{ user.username }} {% if user.room %}📍 {{ user.room }}{% else %}🚫 NON ASSIGNÉ{% endif %}</span>
+                        <span>{% if user.is_ready %}PRÊT{% else %}STANDBY{% endif %}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <button id="ready_btn" onclick="setReady()">⚡ CONFIRMER STATUT PRÊT</button>
+            <p>Statut requis pour lancer la séquence d'urgence</p>
+        </div>
+
+        <div class="procedure-panel">
+            <h2>📋 PROCÉDURE D'URGENCE</h2>
+            <ul>
+                <li>🔸 Chaque unité doit occuper un poste spécialisé UNIQUE</li>
+                <li>🔸 Minimum 2 unités en statut PRÊT requis</li>
+                <li>🔸 Délai d'intervention: 10 minutes maximum</li>
+                <li>🔸 Communication inter-unités essentielle</li>
+                <li>🔸 Les postes se débloquent séquentiellement</li>
+                <li>🔸 Échec = point de non-retour écologique</li>
+            </ul>
+        </div>
+
+        <div id="status-message"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const bgMusic = document.getElementById('bg-music');
+        const tickSound = document.getElementById('tick-sound');
+        bgMusic.volume = 0.3;
+        tickSound.volume = 0.2;
+
+        function selectRoom() {
+            const roomSelect = document.getElementById('room_select');
+            const room = roomSelect.value;
+            socket.emit('select_room', { room: room });
+        }
+
+        function setReady() {
+            socket.emit('player_ready');
+            document.getElementById('ready_btn').disabled = true;
+            showMessage('STATUT PRÊT CONFIRMÉ ! SYNCHRONISATION EN COURS...', 'info');
+        }
+
+        function showMessage(message, type) {
+            const statusDiv = document.getElementById('status-message');
+            const colors = {
+                'info': '#00ff00',
+                'success': '#00ff00',
+                'error': '#ff0000'
+            };
+            statusDiv.innerHTML = `<p style="color: ${colors[type] || '#fff'}">${message}</p>`;
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+        }
+
+        socket.on('room_selected', (data) => {
+            document.getElementById('ready_btn').disabled = false;
+            showMessage(`POSTE ${data.room} AFFECTÉ. CONFIRMEZ VOTRE STATUT.`, 'success');
+        });
+
+        socket.on('error', (data) => {
+            showMessage(data.message, 'error');
+            document.getElementById('ready_btn').disabled = false;
+        });
+    </script>
+
+    <!-- Script de polling -->
+    <script>
+        let lastGameState = null;
+        let pollInterval = null;
+        let isGameStarted = false;
+        let tickInterval = null;
+
+        function startPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+            pollInterval = setInterval(checkDatabaseStatus, 1000);
+            checkDatabaseStatus();
+        }
+
+        async function checkDatabaseStatus() {
+            try {
+                const response = await fetch('/api/poll_status');
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showMessage('ACCÈS NON AUTORISÉ. REDIRECTION VERS L\'IDENTIFICATION...', 'error');
+                        clearInterval(pollInterval);
+                        setTimeout(() => { window.location.href = '/login'; }, 2000);
+                        return;
+                    }
+                    console.error('Erreur polling:', response.status);
+                    showMessage('ERREUR DE CONNEXION AU SYSTÈME. VEUILLEZ RÉESSAYER.', 'error');
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('Poll response:', data); // Debug API response
+                
+                if (data.game_result === 'victory') {
+                    clearInterval(pollInterval);
+                    clearInterval(tickInterval);
+                    window.location.href = '/victory';
+                    return;
+                }
+                
+                if (data.game_result === 'defeat') {
+                    clearInterval(pollInterval);
+                    clearInterval(tickInterval);
+                    showMessage('😢 ALERTE CRITIQUE: ÉCHEC TOTAL. ÉCOSYSTÈME PERDU...', 'error');
+                    setTimeout(() => { window.location.href = '/lobby'; }, 3000);
+                    return;
+                }
+
+                updatePlayerList(data.players);
+                updateRoomsList(data.rooms);
+                updateGameStatus(data);
+                
+                if (data.can_access_game && data.game_started === 'true') {
+                    console.log('✅ POSTE ACTIVÉ ! TRANSFERT VERS ZONE OPÉRATIONNELLE');
+                    clearInterval(pollInterval);
+                    clearInterval(tickInterval);
+                    window.location.href = '/game';
+                    return;
+                }
+                
+                // Handle tick sound
+                if (data.game_started === 'true' && !isGameStarted) {
+                    isGameStarted = true;
+                    if (tickInterval) {
+                        clearInterval(tickInterval);
+                    }
+                    tickInterval = setInterval(() => {
+                        if (lastGameState && lastGameState.remaining_time < 60 && lastGameState.remaining_time > 0) {
+                            tickSound.play().catch(err => console.error('Erreur son tick:', err));
+                        }
+                    }, 1000);
+                }
+                
+                lastGameState = data;
+                
+            } catch (error) {
+                console.error('Erreur lors du polling:', error);
+                showMessage('ERREUR DE CONNEXION AU SYSTÈME. VEUILLEZ RÉESSAYER.', 'error');
+                // Fallback timer
+                updateGameStatus({ game_started: 'false', remaining_time: lastGameState ? lastGameState.remaining_time - 1 : 600 });
+            }
+        }
+
+        function updatePlayerList(players) {
+            const playerList = document.getElementById('player_list');
+            if (!playerList) return;
+            playerList.innerHTML = '';
+            players.forEach(player => {
+                const li = document.createElement('li');
+                li.className = 'agent-status';
+                li.innerHTML = `
+                    <span>${player.username}${player.room ? ' 📍 ' + player.room : ' 🚫 NON ASSIGNÉ'}</span>
+                    <span>${player.is_ready ? 'PRÊT' : 'STANDBY'}</span>
+                `;
+                playerList.appendChild(li);
+            });
+            const readyCount = players.filter(p => p.is_ready && p.room).length;
+            document.getElementById('ready-count').innerText = `▶️ Unités opérationnelles: ${readyCount}/2 minimum`;
+        }
+
+        function updateRoomsList(rooms) {
+            const roomSelect = document.getElementById('room_select');
+            if (!roomSelect) return;
+            const currentValue = roomSelect.value;
+            roomSelect.innerHTML = '';
+            rooms.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room.name;
+                option.text = `${room.name} ${room.is_locked ? '🔒 VERROUILLÉ' : room.assigned_player && room.assigned_player !== document.body.dataset.username ? 'OCCUPÉ' : room.assigned_player === document.body.dataset.username ? 'VOTRE POSTE' : 'DISPONIBLE'}`;
+                if (room.assigned_player && room.assigned_player !== document.body.dataset.username) {
+                    option.disabled = true;
+                }
+                roomSelect.appendChild(option);
+            });
+            if (currentValue) {
+                roomSelect.value = currentValue;
+            }
+        }
+
+        function updateGameStatus(data) {
+            const statusDiv = document.getElementById('game_status');
+            const timerDiv = document.querySelector('.timer');
+            if (!statusDiv || !timerDiv) return;
+
+            // Use fallback if remaining_time is invalid
+            let remainingTime = typeof data.remaining_time === 'number' && data.remaining_time >= 0 ? data.remaining_time : (lastGameState ? lastGameState.remaining_time - 1 : 600);
+            if (remainingTime < 0) remainingTime = 0;
+
+            if (data.game_started === 'true') {
+                if (remainingTime > 0) {
+                    const minutes = Math.floor(remainingTime / 60);
+                    const seconds = remainingTime % 60;
+                    statusDiv.innerText = `⚡ SÉQUENCE D'URGENCE ACTIVE`;
+                    statusDiv.style.color = '#00ff00';
+                    timerDiv.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    timerDiv.style.color = remainingTime < 60 ? '#ff0000' : '#00ff00';
+                } else {
+                    statusDiv.innerText = `⏰ ALERTE CRITIQUE: TEMPS ÉCOULÉ`;
+                    statusDiv.style.color = '#ff0000';
+                    timerDiv.innerText = '00:00';
+                    timerDiv.style.color = '#ff0000';
+                    if (tickInterval) clearInterval(tickInterval);
+                }
+            } else {
+                statusDiv.innerText = `⚡ MISSION EN STANDBY - EN ATTENTE DES AGENTS`;
+                statusDiv.style.color = '#ffff00';
+                timerDiv.innerText = '10:00';
+                timerDiv.style.color = '#ff0000';
+                if (tickInterval) clearInterval(tickInterval);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            startPolling();
+            console.log('✅ CENTRE DE COMMANDEMENT EN LIGNE');
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+            if (tickInterval) {
+                clearInterval(tickInterval);
+            }
+        });
+    </script>
+</body>
+</html>

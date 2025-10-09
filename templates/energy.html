@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Éco-Survie - Salle Énergie</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* Chat fixé à gauche */
+        #chat-container {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(180deg, #18181b 0%, #0e0e10 100%);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #2d2d35;
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #chat-container h3 {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #5c16c5;
+            box-shadow: 0 2px 10px rgba(145, 71, 255, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #chat-container h3::before {
+            content: "💬";
+            font-size: 24px;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #eb0400;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-left: auto;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .live-badge::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #18181b;
+            scrollbar-width: thin;
+            scrollbar-color: #9147ff #1f1f23;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #1f1f23;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #9147ff, #772ce8);
+            border-radius: 4px;
+        }
+
+        #messages p {
+            margin: 0 0 10px 0;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            transition: all 0.2s ease;
+            animation: messageSlideIn 0.3s ease-out;
+        }
+
+        #messages p:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-left-color: #9147ff;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-input-group {
+            padding: 15px;
+            background: #1f1f23;
+            border-top: 1px solid #2d2d35;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #18181b;
+            border: 2px solid #2d2d35;
+            border-radius: 8px;
+            color: #efeff1;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .chat-input-group input:focus {
+            border-color: #9147ff;
+            box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.15);
+            background: #1f1f23;
+        }
+
+        .chat-input-group button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-input-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(145, 71, 255, 0.4);
+        }
+
+        .chat-buttons {
+            padding: 0 15px 15px 15px;
+            background: #1f1f23;
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-buttons button {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(145, 71, 255, 0.15);
+            border: 1px solid rgba(145, 71, 255, 0.3);
+            border-radius: 6px;
+            color: #9147ff;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-buttons button:hover {
+            background: rgba(145, 71, 255, 0.25);
+            border-color: #9147ff;
+        }
+
+        #tts_toggle {
+            background: rgba(255, 170, 0, 0.15);
+            border-color: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+        }
+
+        #main-content {
+            margin-left: 400px;
+            width: calc(100% - 400px);
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            
+        }
+        #timer {
+            position: fixed !important;
+            top: 150px;
+            right: 10px !important;
+            margin-right: 0px !important;
+            width: 250px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #55ff55;
+            border: 2px solid #55ff55;
+            box-shadow: 0 0 20px rgba(85, 255, 85, 0.3);
+            z-index: 1000;
+        }
+         #timer {
+                position: static;
+                margin: 10px auto;
+                text-align: center;
+            }
+       
+        /* Modal for displaying image and text */
+        #imageModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.875);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #imageModal #consigne {
+            background: #000000;
+            padding: 15px 20px;
+            border-radius: 8px;
+            max-width: 80%;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(145, 71, 255, 0.3);
+        }
+
+        #imageModal #consigne h3 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        #imageModal img {
+            max-width: 80%;
+            max-height: 60%;
+            border: 3px solid #9147ff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(145, 71, 255, 0.5);
+        }
+
+        #imageModal button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #imageModal button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(145, 71, 255, 0.4);
+        }   
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <h3>
+            Chat d'équipe
+            <span class="live-badge">Live</span>
+        </h3>
+        <div id="messages"></div>
+        <div class="chat-input-group">
+            <input id="message" type="text" placeholder="Envoyer un message...">
+            <button onclick="sendMessage()">Envoyer</button>
+        </div>
+        <div class="chat-buttons">
+            <button onclick="startVoice()">🎤 Vocal</button>
+            <button id="tts_toggle" onclick="toggleTextToSpeech()">🔊 Lecture</button>
+        </div>
+    </div>
+
+    <div class="main-content" style="margin-left: 400px; padding: 20px;">
+        <h1 id="welcome">Bienvenue, {{ username }} dans la salle Énergie</h1>
+        <div id="timer">Temps restant : --</div>
+
+        <!-- Changement de salle -->
+        <div id="room-switch">
+            <h2>Changer de salle</h2>
+            <select id="room_select">
+                <option value="Energie" selected>Énergie</option>
+                <option value="Eau">Eau</option>
+                <option value="Air">Air</option>
+                <option value="Flore">Flore</option>
+            </select>
+            <button onclick="changeRoom()">Changer de salle</button>
+        </div>
+
+        <!-- Puzzle Énergie -->
+        <div id="energy-puzzle">
+            <h2>Tâche : Réparer le câblage</h2>
+            <p>Connectez les câbles de même couleur des nœuds de gauche aux nœuds de droite.</p>
+            <canvas id="energyCanvas" width="600" height="400"></canvas>
+            <button onclick="checkConnections()">Vérifier les connexions</button>
+        </div>
+
+        <div id="imageModal">
+            <div id="consigne">
+                <h3>Vous devez bien mémoriser cette image et l’interpréter afin d’en faire une description <br>
+                    que vous communiquerez via le chat au joueur suivant.</h3>
+            </div>
+            <img src="/static/photo_pbl.png" alt="Puzzle Résolu">
+            <button onclick="closeImageModal()">Fermer</button>
+        </div>
+
+    </div>
+
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Écouter la victoire depuis n'importe quelle page
+        socket.on('victory_achieved', (data) => {
+            showNotification(`🎉 ${data.validator} a trouvé le code secret !`, 'success');
+            setTimeout(() => {
+                window.location.href = '/victory';
+            }, 3000);
+        });
+
+        // Polling de secours pour détecter la victoire
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/poll_status');
+                const data = await response.json();
+                if (data.game_result === 'victory') {
+                    window.location.href = '/victory';
+                }
+            } catch (error) {
+                console.error('Erreur polling victoire:', error);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

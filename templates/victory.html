@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Éco-Survie - VICTOIRE !</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            background-attachment: fixed;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #55ff55;
+            animation: fall linear forwards;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            text-align: center;
+            z-index: 10;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 80px;
+            margin: 20px;
+            color: #55ff55;
+            text-shadow: 0 0 30px #55ff55;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .trophy {
+            font-size: 120px;
+            margin: 30px 0;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .message {
+            font-size: 32px;
+            margin: 30px 0;
+            line-height: 1.6;
+        }
+
+        .stats {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            margin: 40px auto;
+            max-width: 600px;
+            border: 2px solid #55ff55;
+        }
+
+        .stat-item {
+            font-size: 24px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-value {
+            color: #55ff55;
+            font-weight: bold;
+        }
+
+        button {
+            background: linear-gradient(135deg, #55ff55, #33dd33);
+            color: #1a1a1a;
+            border: none;
+            padding: 20px 50px;
+            font-size: 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 30px rgba(85, 255, 85, 0.6);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            font-size: 18px;
+            color: #55ff55;
+            margin-top: 10px;
+        }
+
+        /* Notification de reset */
+        .reset-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 10000;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.7);
+            animation: fadeInScale 0.4s ease;
+            display: none;
+        }
+
+        .reset-notification.show {
+            display: block;
+        }
+
+        .reset-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes fadeInScale {
+            from { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(0.7);
+            }
+            to { 
+                opacity: 1; 
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .countdown {
+            font-size: 20px;
+            margin-top: 20px;
+            opacity: 0.9;
+        }
+
+        .countdown-number {
+            font-size: 32px;
+            color: #ffff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 VICTOIRE ! 🎉</h1>
+        <div class="trophy">🏆</div>
+        <p class="message">
+            Félicitations ! Vous avez sauvé l'écosystème !<br>
+            Vous avez réussi toutes les épreuves et résolu l'énigme finale.
+        </p>
+
+        <div class="stats" id="stats">
+            <div class="stat-item">
+                <span>⚡ Niveau d'Énergie:</span>
+                <span class="stat-value" id="energy">--</span>
+            </div>
+            <div class="stat-item">
+                <span>💧 Pureté de l'Eau:</span>
+                <span class="stat-value" id="water">--</span>
+            </div>
+            <div class="stat-item">
+                <span>💨 Qualité de l'Air (CO₂):</span>
+                <span class="stat-value" id="co2">--</span>
+            </div>
+            <div class="stat-item">
+                <span>💨 Qualité de l'Air (O₂):</span>
+                <span class="stat-value" id="o2">--</span>
+            </div>
+            <div class="stat-item">
+                <span>🌿 Santé de la Flore:</span>
+                <span class="stat-value" id="flora">--</span>
+            </div>
+        </div>
+
+        <button id="resetBtn" onclick="resetGame()">🔄 Nouvelle Partie</button>
+        <div class="loading" id="loading">Réinitialisation en cours...</div>
+    </div>
+
+    <!-- Notification de reset -->
+    <div id="resetNotification" class="reset-notification">
+        <div class="reset-icon">🔄</div>
+        <div id="resetMessage">Le jeu a été réinitialisé</div>
+        <div class="countdown">
+            Redirection dans <span class="countdown-number" id="countdown">3</span>...
+        </div>
+    </div>
+
+    <script>
+        // Créer des confettis
+        function createConfetti() {
+            for (let i = 0; i < 150; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = ['#55ff55', '#ffaa00', '#5599ff', '#ff5555'][Math.floor(Math.random() * 4)];
+                    confetti.style.animationDuration = (2 + Math.random() * 3) + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 5000);
+                }, i * 30);
+            }
+        }
+
+        createConfetti();
+        const confettiInterval = setInterval(createConfetti, 5000);
+
+        // Charger les statistiques
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/poll_status');
+                const data = await response.json();
+                
+                if (data.game_states) {
+                    document.getElementById('energy').textContent = Math.round(data.game_states.energy_level) + '%';
+                    document.getElementById('water').textContent = Math.round(100 - data.game_states.water_pollution) + '%';
+                    document.getElementById('co2').textContent = Math.round(100 - data.game_states.air_co2) + '%';
+                    document.getElementById('o2').textContent = Math.round(data.game_states.air_o2) + '%';
+                    document.getElementById('flora').textContent = Math.round(data.game_states.flora_health) + '%';
+                }
+            } catch (error) {
+                console.error('Erreur chargement stats:', error);
+            }
+        }
+
+        // Fonction pour afficher la notification de reset
+        function showResetNotification(message) {
+            console.log('🔄 Affichage notification de reset');
+            
+            // Arrêter les confettis
+            clearInterval(confettiInterval);
+            
+            // Afficher la notification
+            const notification = document.getElementById('resetNotification');
+            const messageEl = document.getElementById('resetMessage');
+            const countdownEl = document.getElementById('countdown');
+            
+            if (message) {
+                messageEl.textContent = message;
+            }
+            
+            notification.classList.add('show');
+            
+            // Compte à rebours
+            let countdown = 3;
+            countdownEl.textContent = countdown;
+            
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownEl.textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    window.location.href = '/login';
+                }
+            }, 1000);
+        }
+
+        // Fonction pour réinitialiser le jeu
+        async function resetGame() {
+            const btn = document.getElementById('resetBtn');
+            const loading = document.getElementById('loading');
+            
+            // Désactiver le bouton
+            btn.disabled = true;
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/reset_game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResetNotification('Vous avez lancé une nouvelle partie !');
+                } else {
+                    alert('Erreur lors de la réinitialisation du jeu');
+                    btn.disabled = false;
+                    loading.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur de connexion au serveur');
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        // ========== DÉTECTEUR DE RESET DU JEU ==========
+        // Détecte automatiquement quand un AUTRE joueur réinitialise le jeu
+        
+        let pollInterval = setInterval(async function() {
+            try {
+                const response = await fetch('/api/poll_status');
+                
+                // Si le statut est 401, l'utilisateur a été supprimé
+                if (response.status === 401) {
+                    console.log('🔄 Reset détecté: utilisateur supprimé (401)');
+                    clearInterval(pollInterval);
+                    showResetNotification('Un autre joueur a lancé une nouvelle partie !');
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Si force_logout est true, c'est un reset
+                if (data.force_logout === true) {
+                    console.log('🔄 Reset détecté via API polling');
+                    clearInterval(pollInterval);
+                    showResetNotification(data.message || 'Un autre joueur a lancé une nouvelle partie !');
+                }
+            } catch (error) {
+                // Si erreur de fetch, probablement un reset
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                    console.log('🔄 Reset détecté: erreur 401');
+                    clearInterval(pollInterval);
+                    showResetNotification('Un autre joueur a lancé une nouvelle partie !');
+                }
+            }
+        }, 2000); // Vérifier toutes les 2 secondes
+
+        // Charger les stats au démarrage
+        loadStats();
+    </script>
+</body>
+</html>

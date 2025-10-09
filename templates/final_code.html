@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Éco-Survie - Code Final</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            background-attachment: fixed;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 50px 40px;
+            border-radius: 20px;
+            border: 2px solid #55ff55;
+            box-shadow: 0 0 50px rgba(85, 255, 85, 0.3);
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #55ff55, #33dd33);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 20px rgba(85, 255, 85, 0.5);
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: #aaa;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .hints-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hints-section h2 {
+            color: #ffaa00;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .hint {
+            background: rgba(255, 170, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 3px solid #ffaa00;
+            text-align: left;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .hint:last-child {
+            margin-bottom: 0;
+        }
+
+        .code-input-section {
+            margin: 30px 0;
+        }
+
+        .code-input-section label {
+            display: block;
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: #55ff55;
+            font-weight: bold;
+        }
+
+        #code-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            font-size: 28px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #55ff55;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #code-input:focus {
+            border-color: #33dd33;
+            box-shadow: 0 0 20px rgba(85, 255, 85, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        #validate-btn {
+            margin-top: 30px;
+            padding: 18px 60px;
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #55ff55, #33dd33);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        #validate-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 30px rgba(85, 255, 85, 0.6);
+        }
+
+        #validate-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .players-waiting {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .players-waiting h3 {
+            color: #4af;
+            margin-bottom: 15px;
+        }
+
+        .player-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .player-badge {
+            padding: 10px 20px;
+            background: rgba(74, 170, 255, 0.2);
+            border: 1px solid #4af;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        #timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #55ff55;
+            border: 2px solid #55ff55;
+            box-shadow: 0 0 20px rgba(85, 255, 85, 0.3);
+            z-index: 1000;
+        }
+
+        .error-message {
+            color: #ff5555;
+            font-size: 18px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .success-message {
+            color: #55ff55;
+            font-size: 18px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 36px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+
+            #code-input {
+                font-size: 24px;
+                padding: 15px;
+            }
+
+            #validate-btn {
+                padding: 15px 40px;
+                font-size: 20px;
+            }
+
+            #timer {
+                position: static;
+                margin: 10px auto 20px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div id="timer">Temps restant : --</div>
+
+    <div class="container">
+        <h1>🔐 CODE FINAL</h1>
+        <p class="subtitle">
+            Félicitations ! Vous avez traversé toutes les salles.<br>
+            Utilisez les indices collectés pour découvrir le code secret final.
+        </p>
+
+        <div class="hints-section">
+            <h2>📝 Indices collectés</h2>
+            <div class="hint">
+                <strong>💡 Indice 1 :</strong> À l'EPSI, ce n'est qu'une salle de classe 🏫 — c'est un espace où l'on apprend 📚, crée 💻, expérimente 🔬 et collabore 🤝
+            </div>
+            <div class="hint">
+                <strong>💡 Indice 2 :</strong> 🎯 Chaque année, ces défis d'innovation 💡 rassemblent les étudiants 👩‍💻👨‍💻 autour de projets concrets 🔧, dans un esprit d'équipe 🤝 et de passion pour le code 🧠💻
+            </div>
+            <div class="hint">
+                <strong>💡 Indice 3 :</strong> ✨ Et cette fois, tout se joue dans une année symbolique 🗓️ : celle où la créativité 🎨 et la technologie 🤖 se rencontrent — 2025 🚀
+            </div>
+        </div>
+
+        <div class="code-input-section">
+            <label for="code-input">🔑 Entrez le code secret :</label>
+            <input 
+                type="text" 
+                id="code-input" 
+                maxlength="20" 
+                placeholder="CODE"
+                autocomplete="off"
+            >
+            <button id="validate-btn" onclick="validateCode()">
+                Valider le Code
+            </button>
+            <div id="message"></div>
+        </div>
+
+        <div class="players-waiting">
+            <h3>👥 Joueurs présents</h3>
+            <div class="player-list" id="player-list">
+                <div class="player-badge">Chargement...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Générer les étoiles
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        createStars();
+
+        // Mise à jour du timer
+        socket.on('timer_update', (data) => {
+            const timerElement = document.getElementById('timer');
+            if (timerElement) {
+                const minutes = Math.floor(data.remaining / 60);
+                const seconds = data.remaining % 60;
+                timerElement.innerText = `Temps restant : ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (data.remaining < 60) {
+                    timerElement.style.color = '#ff5555';
+                    timerElement.style.animation = 'pulse 1s infinite';
+                } else if (data.remaining < 180) {
+                    timerElement.style.color = '#ffaa00';
+                }
+            }
+        });
+
+        // NOUVEAU: Écouter l'événement de victoire
+        socket.on('victory_achieved', (data) => {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<p class="success-message">🎉 ${data.validator} a trouvé le code ! Redirection...</p>`;
+            
+            // Désactiver l'input et le bouton
+            document.getElementById('code-input').disabled = true;
+            document.getElementById('validate-btn').disabled = true;
+            
+            // Rediriger tous les joueurs vers la victoire
+            setTimeout(() => {
+                window.location.href = '/victory';
+            }, 3000);
+        });
+
+        // Polling pour mettre à jour la liste des joueurs ET vérifier la victoire
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/poll_status');
+                const data = await response.json();
+                
+                // Vérifier si quelqu'un a gagné
+                if (data.game_result === 'victory') {
+                    window.location.href = '/victory';
+                }
+                
+                // Mettre à jour la liste des joueurs
+                const playerList = document.getElementById('player-list');
+                if (data.players && data.players.length > 0) {
+                    playerList.innerHTML = '';
+                    data.players.forEach(player => {
+                        const badge = document.createElement('div');
+                        badge.className = 'player-badge';
+                        badge.textContent = `${player.username} - ${player.room || 'En attente'}`;
+                        playerList.appendChild(badge);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur polling:', error);
+            }
+        }, 2000);
+
+        // Validation du code
+        async function validateCode() {
+            const input = document.getElementById('code-input');
+            const messageDiv = document.getElementById('message');
+            const btn = document.getElementById('validate-btn');
+            const code = input.value.trim().toUpperCase();
+
+            if (!code) {
+                messageDiv.innerHTML = '<p class="error-message">⚠️ Veuillez entrer un code</p>';
+                return;
+            }
+
+            // Désactiver le bouton pendant la validation
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/validate_final_code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    messageDiv.innerHTML = '<p class="success-message">✅ CODE CORRECT ! Tous les joueurs sont redirigés...</p>';
+                    input.disabled = true;
+                    
+                    // La redirection sera gérée par l'événement socket 'victory_achieved'
+                    // qui est émis depuis le serveur pour tous les clients
+                } else {
+                    messageDiv.innerHTML = '<p class="error-message">❌ Code incorrect. Réessayez !</p>';
+                    input.value = '';
+                    input.focus();
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Erreur validation:', error);
+                messageDiv.innerHTML = '<p class="error-message">❌ Erreur de connexion</p>';
+                btn.disabled = false;
+            }
+        }
+
+        // Permettre la validation avec Enter
+        document.getElementById('code-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                validateCode();
+            }
+        });
+
+        // Auto-focus sur l'input
+        window.addEventListener('load', () => {
+            document.getElementById('code-input').focus();
+        });
+    </script>
+</body>
+</html>

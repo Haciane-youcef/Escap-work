@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Salle Eau - Éco-Survie</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a1628, #1e3c72, #2a5298);
+            color: #ffffff;
+            font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Chat fixé à gauche */
+        #chat-container {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(180deg, #18181b 0%, #0e0e10 100%);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #2d2d35;
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #chat-container h3 {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #5c16c5;
+            box-shadow: 0 2px 10px rgba(145, 71, 255, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #chat-container h3::before {
+            content: "💬";
+            font-size: 24px;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #eb0400;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-left: auto;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .live-badge::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #18181b;
+            scrollbar-width: thin;
+            scrollbar-color: #9147ff #1f1f23;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #1f1f23;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #9147ff, #772ce8);
+            border-radius: 4px;
+        }
+
+        #messages p {
+            margin: 0 0 10px 0;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            transition: all 0.2s ease;
+            animation: messageSlideIn 0.3s ease-out;
+        }
+
+        #messages p:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-left-color: #9147ff;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-input-group {
+            padding: 15px;
+            background: #1f1f23;
+            border-top: 1px solid #2d2d35;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #18181b;
+            border: 2px solid #2d2d35;
+            border-radius: 8px;
+            color: #efeff1;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .chat-input-group input:focus {
+            border-color: #9147ff;
+            box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.15);
+            background: #1f1f23;
+        }
+
+        .chat-input-group button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-input-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(145, 71, 255, 0.4);
+        }
+
+        .chat-buttons {
+            padding: 0 15px 15px 15px;
+            background: #1f1f23;
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-buttons button {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(145, 71, 255, 0.15);
+            border: 1px solid rgba(145, 71, 255, 0.3);
+            border-radius: 6px;
+            color: #9147ff;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-buttons button:hover {
+            background: rgba(145, 71, 255, 0.25);
+            border-color: #9147ff;
+        }
+
+        #tts_toggle {
+            background: rgba(255, 170, 0, 0.15);
+            border-color: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+        }
+
+        /* Contenu principal */
+        #main-content {
+            margin-left: 400px;
+            width: calc(100% - 400px);
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #55ff55);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 15px 0;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        #timer {
+            font-size: 1.3rem;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px 25px;
+            border-radius: 50px;
+            display: inline-block;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        #purity-bar-container {
+            margin: 25px auto;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        #purity-bar-container label {
+            display: block;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        #purity-level {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00d4ff, #55ff55);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #purity-bar {
+            width: 100%;
+            height: 30px;
+            border-radius: 50px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+        }
+
+        #river-container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 350px;
+            margin: 30px auto;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0a1628, #1e3c72);
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-radius: 25px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .river {
+            width: 200%;
+            height: 100%;
+            animation: flow 40s linear infinite;
+            transition: filter 1.5s ease;
+        }
+
+        .river.polluted {
+            filter: grayscale(80%) brightness(40%);
+        }
+
+        .river.clean {
+            filter: grayscale(0%) brightness(110%);
+        }
+
+        @keyframes flow {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .waste {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            cursor: grab;
+            transition: transform 0.2s ease;
+            filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.6));
+            z-index: 1000;
+        }
+
+        .waste:hover {
+            transform: scale(1.15);
+        }
+
+        .waste.dragging {
+            cursor: grabbing;
+            opacity: 0.9;
+            transform: scale(1.2);
+        }
+
+        #bins {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .bin {
+            width: 140px;
+            height: 140px;
+            background: rgba(30, 60, 114, 0.4);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .bin:hover {
+            transform: translateY(-5px) scale(1.05);
+            border-color: rgba(0, 212, 255, 0.5);
+        }
+
+        .bin.drag-over {
+            background: rgba(0, 212, 255, 0.3);
+            border: 3px solid #00d4ff;
+            transform: scale(1.1);
+        }
+
+        .puzzle-section {
+            display: none;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 25px;
+            margin: 30px auto;
+            max-width: 900px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .puzzle-section.active {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .gauges {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .gauges > div {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 250px;
+        }
+
+        .gauges button,
+        #validate-chemical {
+            background: linear-gradient(135deg, #00d4ff, #55ff55);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            color: #ffffff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .gauges button:hover,
+        #validate-chemical:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 212, 255, 0.5);
+        }
+
+        #states {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+            font-size: 1.1rem;
+            flex-wrap: wrap;
+        }
+
+        #states span {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            #chat-container {
+                width: 320px;
+            }
+            
+            #main-content {
+                margin-left: 320px;
+                width: calc(100% - 320px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            #chat-container {
+                width: 100%;
+                height: 40vh;
+                top: auto;
+                bottom: 0;
+                border-right: none;
+                border-top: 1px solid #2d2d35;
+            }
+            
+            #main-content {
+                margin-left: 0;
+                width: 100%;
+                padding-bottom: 40vh;
+            }
+        }
+
+        /* Lightbox pour l'image */
+        #imageModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.875);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #imageModal #consigne {
+            background: #000000;
+            padding: 15px 20px;
+            border-radius: 8px;
+            max-width: 80%;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(145, 71, 255, 0.3);
+        }
+
+        #imageModal #consigne h3 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        #imageModal img {
+            max-width: 80%;
+            max-height: 60%;
+            border: 3px solid #9147ff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(145, 71, 255, 0.5);
+        }
+
+        #imageModal button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #9147ff 0%, #772ce8 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #imageModal button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(145, 71, 255, 0.4);
+        } 
+    </style>
+</head>
+<body>
+    <!-- Chat à gauche -->
+    <div id="chat-container">
+        <h3>
+            Chat d'équipe
+            <span class="live-badge">Live</span>
+        </h3>
+        <div id="messages"></div>
+        <div class="chat-input-group">
+            <input id="message" type="text" placeholder="Envoyer un message...">
+            <button onclick="sendMessage()">Envoyer</button>
+        </div>
+        <div class="chat-buttons">
+            <button onclick="startVoice()">🎤 Vocal</button>
+            <button id="tts_toggle" onclick="toggleTextToSpeech()">🔊 Lecture</button>
+        </div>
+    </div>
+
+    <!-- Contenu principal -->
+    <div id="main-content">
+        <header>
+            <h1>🌊 Bienvenue, {{ username }} dans la salle Eau</h1>
+            <div id="timer">Temps restant : --</div>
+        </header>
+
+        <div id="purity-bar-container">
+            <label>Pureté de l'eau : <span id="purity-level">0%</span></label>
+            <progress id="purity-bar" value="0" max="100"></progress>
+        </div>
+
+        <div id="river-container">
+            <div id="river" class="river polluted"></div>
+            <audio id="river-sound" src="{{ url_for('static', filename='river_clean.mp3') }}"></audio>
+        </div>
+
+        <section id="waste-sorting" class="puzzle-section active">
+            <h2>Étape 1 : Tri des déchets</h2>
+            <p>Glissez les déchets vers la bonne poubelle pour nettoyer le fleuve.</p>
+            <div id="bins">
+                <div id="bin-plastic" class="bin" data-type="plastic">🟩 Plastique</div>
+                <div id="bin-metal" class="bin" data-type="metal">🔋 Métaux/Piles</div>
+                <div id="bin-organic" class="bin" data-type="organic">🍃 Organique</div>
+            </div>
+        </section>
+
+        <section id="chemical-neutralization" class="puzzle-section">
+            <h2>Étape 2 : Neutraliser la pollution chimique</h2>
+            <p>Ajustez le pH et l'oxygène pour équilibrer l'eau.</p>
+            <div class="gauges">
+                <div>
+                    <label>pH actuel : <span id="ph-value">5.6</span></label>
+                    <button id="add-lime">Ajouter chaux (+ pH)</button>
+                </div>
+                <div>
+                    <label>O₂ actuel : <span id="o2-value">3.2 mg/L</span></label>
+                    <button id="activate-aerator">Activer aérateur (+ O₂)</button>
+                </div>
+            </div>
+            <button id="validate-chemical">Valider l'équilibre</button>
+        </section>
+
+        <div id="imageModal">
+            <div id="consigne">
+                <h3>Vous devez bien mémoriser cette image et l’interpréter afin d’en faire une description <br>
+                    que vous communiquerez via le chat au joueur suivant.</h3>
+            </div>
+            <img src="/static/direction_de_vent.png" alt="Puzzle Résolu">
+            <button onclick="closeImageModal()">Fermer</button>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initWaterPuzzle();
+            const riverSound = document.getElementById('river-sound');
+            if (riverSound) {
+                riverSound.play().catch(() => {
+                    document.addEventListener('click', () => {
+                        riverSound.play();
+                    }, { once: true });
+                });
+            }
+        });
+    </script>
+    <script>
+        // Écouter la victoire depuis n'importe quelle page
+        socket.on('victory_achieved', (data) => {
+            showNotification(`🎉 ${data.validator} a trouvé le code secret !`, 'success');
+            setTimeout(() => {
+                window.location.href = '/victory';
+            }, 3000);
+        });
+
+        // Polling de secours pour détecter la victoire
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/poll_status');
+                const data = await response.json();
+                if (data.game_result === 'victory') {
+                    window.location.href = '/victory';
+                }
+            } catch (error) {
+                console.error('Erreur polling victoire:', error);
+            }
+        }, 2000);
+    </script>
+    
+</body>
+</html>

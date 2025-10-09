@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Éco-Survie - Salle Flore</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        /* Style du chat */
+        #chat-container {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #chat-container h3 {
+            color: #4af;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        #messages {
+            height: 250px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            margin-bottom: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #4af rgba(0, 0, 0, 0.3);
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #4af;
+            border-radius: 10px;
+        }
+
+        #messages p {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 5px;
+            word-wrap: break-word;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .chat-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .chat-input-group input:focus {
+            outline: none;
+            border-color: #4af;
+            box-shadow: 0 0 10px rgba(74, 170, 255, 0.3);
+        }
+
+        .chat-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chat-buttons button {
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #4af, #2a8fd8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .chat-buttons button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 170, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <h1 id="welcome">Bienvenue, {{ username }} dans la salle Flore</h1>
+    <div id="timer">Temps restant : --</div>
+
+    <!-- Changement de salle -->
+    <div id="room-switch">
+        <h2>Changer de salle</h2>
+        <select id="room_select">
+            <option value="Energie">Énergie</option>
+            <option value="Eau">Eau</option>
+            <option value="Air">Air</option>
+            <option value="Flore" selected>Flore</option>
+        </select>
+        <button onclick="changeRoom()">Changer de salle</button>
+    </div>
+
+    <!-- Puzzle Flore -->
+    <div id="flora-quiz">
+        <h2>Quiz Botanique</h2>
+        <p>Choisir une plante :</p>
+        <button onclick="sendAction('select_plant', {plant: 'oxygen_plant'})">Plante Oxygénante</button>
+        <button onclick="sendAction('select_plant', {plant: 'purifying_plant'})">Plante Purifiante</button>
+    </div>
+
+    <!-- États globaux -->
+    <div id="states">
+        Énergie: <span id="energy_level"></span><br>
+        Pollution Eau: <span id="water_pollution"></span><br>
+        CO₂ Air: <span id="air_co2"></span><br>
+        O₂ Air: <span id="air_o2"></span><br>
+        Santé Flore: <span id="flora_health"></span>
+    </div>
+
+    <!-- Chat avec nouveau système -->
+    <div id="chat-container">
+        <h3>💬 Chat d'équipe</h3>
+        <div id="messages"></div>
+        <div class="chat-input-group">
+            <input id="message" type="text" placeholder="Tapez votre message...">
+            <button onclick="sendMessage()" style="padding: 12px 25px;">Envoyer</button>
+        </div>
+        <div class="chat-buttons">
+            <button onclick="startVoice()">🎤 Reconnaissance vocale</button>
+            <button id="tts_toggle" onclick="toggleTextToSpeech()">🔊 Lecture vocale</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        function changeRoom() {
+            const select = document.getElementById('room_select');
+            const room = select.value;
+            socket.emit('select_room', { room: room });
+        }
+
+        socket.on('room_selected', (data) => {
+            window.location.href = '/game';
+        });
+    </script>
+</body>
+</html>
